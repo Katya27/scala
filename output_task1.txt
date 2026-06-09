@@ -1,0 +1,52 @@
+Sessions Card Search with document ID 'ACC_45616'
+Found Sessions '1210'
+Query: расторжение договора в судебном порядке
+Found Sessions '2239'
+Query: Приказ МЗ СО от 28.09.2012 №1100-П Об утверждении Положения о премировании руководителей государственных учреждений Свердловской области, подведомственных Министерству здравоохранению свердловской области в новой редакции
+Found Sessions '2362'
+Query: (no query)
+Found Sessions '2399'
+Query: (no query)
+Found Sessions '3446'
+Query: 400 УПК РФ
+Found Sessions '3606'
+Query: (no query)
+Found Sessions '4246'
+Query: (no query)
+Found Sessions '4297'
+Query: (no query)
+Found Sessions '4591'
+Query: злоупотребление правом  со стороны  истца  по закону  о защите прав потребителей
+Found Sessions '4828'
+Query: как облагается доход от выигрыша
+Found Sessions '4915'
+Query: (no query)
+Found Sessions '4965'
+Query: П/0387 от 20.10.2020
+Found Sessions '5023'
+Query: 143н  14.03.2018
+Found Sessions '5872'
+Query: 439-ФЗ от 16.12.2019
+Found Sessions '6005'
+Query: (no query)
+Found Sessions '6078'
+Query: (no query)
+Found Sessions '6383'
+Query: правила благоустройства города Перми
+Found Sessions '6605'
+Query: Переписка с вышестоящей
+Found Sessions '7070'
+Query: Приказ Минздрава России от 11.04.2012 № 343н
+Found Sessions '7350'
+Query: 284
+Found Sessions '7354'
+Query: (no query)
+Found Sessions '921'
+Query: (no query)
+Found Sessions '9399'
+Query: (no query)
+Found Sessions '9839'
+Query: 03-01-15/16-453
+
+============================================================
+RESULT: document ID 'ACC_45616' was searched: 24 times
