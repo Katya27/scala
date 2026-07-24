@@ -1,26 +1,45 @@
 package src.parser
 
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
+import java.time.format.{DateTimeFormatter, DateTimeParseException}
 import java.util.Locale
+import com.fasterxml.jackson.databind.ObjectMapper
+import scala.io.Source
 
 object DateTimeParser {
-  private val formatter1 = DateTimeFormatter.ofPattern("dd.MM.yyyy_HH:mm:ss")
-  private val formatter2 = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")
-  private val formatter3 = DateTimeFormatter.ofPattern("EEE,_d_MMM_yyyy_HH:mm:ss_Z", Locale.ENGLISH)
+  private val defaultLocale = Locale.ENGLISH
+  private val mapper = new ObjectMapper()
 
-  def parse(str: String): LocalDateTime = {
+  private lazy val formatters: List[DateTimeFormatter] = {
     try {
-      LocalDateTime.parse(str, formatter1)
+      val json = Source.fromResource("dataformats.json").mkString
+      val patterns: Array[String] = mapper.readValue(json, classOf[Array[String]])
+      patterns.map(DateTimeFormatter.ofPattern(_, defaultLocale)).toList
     } catch {
-      case _: DateTimeParseException =>
-        try {
-          LocalDateTime.parse(str, formatter2)
-        } catch {
-          case _: DateTimeParseException =>
-           LocalDateTime.parse(str, formatter3)
-        }
+      case _: Exception => List.empty
+    }
+  }
+
+  def parse(str: String, errorCollector: ErrorCollector): Option[LocalDateTime] = {
+    val trimmed = str.trim
+    if (formatters.isEmpty) {
+      errorCollector.add("DATE_FORMAT_LOAD_ERROR", "Форматы не загружены")
+      return None
+    }
+
+
+    formatters.find { f =>
+      try {
+        LocalDateTime.parse(trimmed, f)
+        true
+      } catch {
+        case _: DateTimeParseException => false
+      }
+    }.map { f => LocalDateTime.parse(trimmed, f) } match {
+      case Some(dt) => Some(dt)
+      case None =>
+        errorCollector.add("DATE_PARSE_ERROR", s"Не удалось распарсить: $trimmed")
+        None
     }
   }
 }

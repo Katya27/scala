@@ -3,7 +3,15 @@ package src.parser
 import java.time.LocalDateTime
 import scala.collection.mutable.{ListBuffer, Map => MutableMap}
 
-private[parser] class ParsingContext {
+case class Session(
+                    sessionId: Int,
+                    startTime: LocalDateTime,
+                    endTime: LocalDateTime,
+                    quickSearches: List[QuickSearch],
+                    cardSearches: List[CardSearch]
+                  )
+
+private[parser] class ParsingContext(val errorCollector: ErrorCollector = new ErrorCollector()) {
   var sessionId: Option[Int] = None
   var startTime: Option[LocalDateTime] = None
   var endTime: Option[LocalDateTime] = None
@@ -11,47 +19,19 @@ private[parser] class ParsingContext {
   val qsBuilders = ListBuffer.empty[QuickSearchBuilder]
   val csBuilders = ListBuffer.empty[CardSearchBuilder]
 
-  var errorCount: Int = 0
-  val errorTypes: ListBuffer[String] = ListBuffer.empty
-  val errorMessages: ListBuffer[String] = ListBuffer.empty
-
   def addError(errorType: String, msg: String): Unit = {
-    errorCount += 1
-    errorTypes += errorType
-    errorMessages += msg
+    errorCollector.add(errorType, msg)
   }
 }
 
-private[parser] case class QuickSearchBuilder(
-                                               datetime: LocalDateTime,
-                                               query: String,
-                                               searchId: Int,
-                                               documents: ListBuffer[String],
-                                               documentOpens: ListBuffer[DocumentOpen]
-                                             ) {
-  def build(): QuickSearch =
-    QuickSearch(datetime, query, searchId, documents.toList, documentOpens.toList)
-}
-
-private[parser] case class CardSearchBuilder(
-                                              startTime: LocalDateTime,
-                                              var searchId: Int,
-                                              params: MutableMap[String, String],
-                                              documents: ListBuffer[String],
-                                              documentOpens: ListBuffer[DocumentOpen]
-                                            ) {
-  def build(): CardSearch =
-    CardSearch(startTime, searchId, params.toMap, documents.toList, documentOpens.toList)
+trait EventHandler {
+  def handle(line: String, ctx: ParsingContext, iter: Iterator[String]): Unit
 }
 
 object SessionParser {
   private val handlers: Map[String, EventHandler] = Map(
-    "SESSION_START"     -> new SessionStartHandler(),
-    "SESSION_END"       -> new SessionEndHandler(),
     "QS"                -> new QSHandler(),
-    "CARD_SEARCH_START" -> new CardSearchStartHandler(),
-    "CARD_SEARCH_END"   -> new CardSearchEndHandler(),
-    "$"                 -> new ParamHandler(),
+    "CARD_SEARCH_START" -> new CardSearchHandler(),
     "DOC_OPEN"          -> new DocOpenHandler()
   )
 
@@ -67,14 +47,30 @@ object SessionParser {
         ctx.addError("SESSION_ID", s"Не удалось преобразовать имя файла '$fileName' в Int")
     }
 
-    while (iter.hasNext) {
-      val line = iter.next()
-      val prefix = if (line.startsWith("$")) "$" else line.takeWhile(_ != ' ').trim
-      handlers.get(prefix) match {
-        case Some(handler) => handler.handle(line, ctx, iter)
-        case None =>
-          ctx.addError("UNKNOWN_LINE", s"Неизвестная строка: $line")
+    try {
+      while (iter.hasNext) {
+        val line = iter.next()
+        val prefix = if (line.startsWith("$")) "$" else line.takeWhile(_ != ' ').trim
+
+        prefix match {
+          case "SESSION_START" =>
+            val parts = line.split(" ")
+            DateTimeParser.parse(parts(1), ctx.errorCollector).foreach(dt => ctx.startTime = Some(dt))
+
+          case "SESSION_END" =>
+            val parts = line.split(" ")
+            DateTimeParser.parse(parts(1), ctx.errorCollector).foreach(dt => ctx.endTime = Some(dt))
+
+          case _ =>
+            handlers.get(prefix) match {
+              case Some(handler) => handler.handle(line, ctx, iter)
+              case None => ctx.addError("UNKNOWN_LINE", s"Неизвестная строка: $line")
+            }
+        }
       }
+    } catch {
+      case e: Exception =>
+        ctx.errorCollector.addWithStack("PARSER_CRASH", s"Критическая ошибка при парсинге файла $fileName", e)
     }
 
     val quickSearches = ctx.qsBuilders.map(_.build()).toList
@@ -89,9 +85,9 @@ object SessionParser {
     )
 
     val report = ParseReport(
-      errorCount = ctx.errorCount,
-      errorTypes = ctx.errorTypes.toList,
-      errorMessages = ctx.errorMessages.toList
+      errorCount = ctx.errorCollector.getTotal,
+      errorTypes = ctx.errorCollector.getCounters.keys.toList,
+      errorMessages = ctx.errorCollector.getMessages
     )
 
     (session, report)
